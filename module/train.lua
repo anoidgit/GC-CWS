@@ -1,14 +1,14 @@
 print("set default tensor type to float")
 torch.setdefaulttensortype('torch.FloatTensor')
 
-function gradUpdate(mlpin, x, y, criterionin, learningRate)
+function gradUpdate(mlpin, x, y, criterionin, learningRate, momentumer)
 	local pred=mlpin:forward(x)
 	local err=criterionin:forward(pred, y)
 	sumErr=sumErr+err
 	local gradCriterion=criterionin:backward(pred, y)
 	mlpin:zeroGradParameters()
 	mlpin:backward(x, gradCriterion)
-	mlpin:updateGradParameters(0.9)
+	mlpin:updateGradParameters(momentumer)
 	mlpin:updateParameters(learningRate)
 	mlpin:maxParamNorm(2)
 end
@@ -40,9 +40,17 @@ function saveObject(fname,objWrt)
 		tmpod:mediumSerial()
 		objWrt:cuda()
 	end
-	local file=torch.DiskFile(fname,'w')
+	torch.save(fname,tmpod)
+	--[[local file=torch.DiskFile(fname,'w')
 	file:writeObject(tmpod)
-	file:close()
+	file:close()]]
+end
+
+function memsave(modin)
+	modin:float()
+	local rs=modin:clone()
+	modin:cuda()
+	return rs
 end
 
 print("load settings")
@@ -99,6 +107,8 @@ function train()
 	print("init train")
 	local epochs=1
 	local lr=modlr
+	local momentum=momentums
+	local momentuma=(momentume-momentums)/momentumc
 	--inirand()
 
 	mindeverrate=evaDev(nnmod,devin,devt,critmod)
@@ -107,100 +117,98 @@ function train()
 	collectgarbage()
 
 	print("start pre train")
-	for tmpi=1,warmcycle do
-		for tmpj=1,ieps do
+
+	for tmpi = 1,warmcycle do
+		for tmpj = 1,ieps do
 			for curpot,v in ipairs(mword) do
-				gradUpdate(nnmod,v,mwordt[curpot],critmod,lr)
+				gradUpdate(nnmod,v,mwordt[curpot],critmod,lr,momentum)
 			end
 		end
-		local erate=sumErr/eaddtrain
+		local erate = sumErr/eaddtrain
 		if erate<minerrate then
-			minerrate=erate
+			minerrate = erate
 		end
 		table.insert(crithis,erate)
 		print("epoch:"..tostring(epochs)..",lr:"..lr..",Tra:"..erate)
-		sumErr=0
-		epochs=epochs+1
+		sumErr = 0
+		epochs = epochs+1
+		momentum = math.min(momentum + momentuma,momentume)
 	end
 	
 	print("save neural network trained")
 	saveObject(savedir.."nnmod.asc",nnmod)
 	
-	print("turn on embeddings update")
-	upvec(nnmod)
+	--[[print("turn on embeddings update")
+	upvec(nnmod)]]
 
-	epochs=1
-	icycle=1
+	epochs = 1
+	icycle = 1
 
-	aminerr=1
-	lrdecayepochs=1
+	aminerr = 1
+	lrdecayepochs = 1
 	
 	collectgarbage()
 
 	while true do
 		print("start innercycle:"..icycle)
-		for innercycle=1,gtraincycle do
-			for tmpi=1,ieps do
+		for innercycle = 1,gtraincycle do
+			for tmpi = 1,ieps do
 				for curpot,v in ipairs(mword) do
-					gradUpdate(nnmod,v,mwordt[curpot],critmod,lr)
+					gradUpdate(nnmod,v,mwordt[curpot],critmod,lr,momentum)
 				end
 			end
-			local erate=sumErr/eaddtrain
+			local erate = sumErr/eaddtrain
 			table.insert(crithis,erate)
-			local edevrate=evaDev(nnmod,devin,devt,critmod)
+			local edevrate = evaDev(nnmod,devin,devt,critmod)
 			table.insert(cridev,edevrate)
 			print("epoch:"..tostring(epochs)..",lr:"..lr..",Tra:"..erate..",Dev:"..edevrate)
 			--print("epoch:"..tostring(epochs)..",lr:"..lr..",Tra:"..erate)
-			local modsavd=false
+			local modsavd = false
 			if edevrate<mindeverrate then
 				print("new minimal dev error found,save model")
-				mindeverrate=edevrate
+				mindeverrate = edevrate
 				if cycs then
-					nnmod:float()
-					bdevnnmod=nnmod:clone()
-					nnmod:cuda()
-					bupdevnm=true
+					bdevnnmod = memsave(nnmod)
+					bupdevnm = true
 				else
 					saveObject(savedir.."devnnmod"..storedevmini..".asc",nnmod)
-					storedevmini=storedevmini+1
+					storedevmini = storedevmini+1
 					if storedevmini>csave then
-						storedevmini=1
+						storedevmini = 1
 					end
 				end
-				modsavd=true
+				modsavd = true
 			end
 			if erate<minerrate then
-				minerrate=erate
-				aminerr=1
+				minerrate = erate
+				aminerr = 1
 				if not modsavd then
 					print("new minimal error found,save model")
 					if cycs then
-						nnmod:float()
-						bnnmod=nnmod:clone()
-						nnmod:cuda()
-						bupdnm=true
+						bnnmod = memsave(nnmod)
+						bupdnm = true
 					else
 						saveObject(savedir.."nnmod"..storemini..".asc",nnmod)
-						storemini=storemini+1
+						storemini = storemini+1
 						if storemini>csave then
-							storemini=1
+							storemini = 1
 						end
 					end
 				end
 			else
-				if aminerr>=expdecaycycle then
-					aminerr=0
+				if aminerr >= expdecaycycle then
+					aminerr = 0
 					if lrdecayepochs>lrdecaycycle then
-						modlr=lr
-						lrdecayepochs=1
+						modlr = lr
+						lrdecayepochs = 1
 					end
-					lrdecayepochs=lrdecayepochs+1
-					lr=modlr/(lrdecayepochs)
+					lrdecayepochs = lrdecayepochs+1
+					lr = modlr/(lrdecayepochs)
 				end
-				aminerr=aminerr+1
+				aminerr = aminerr+1
 			end
-			sumErr=0
-			if cycs and epochs%savecycle==0 then
+			sumErr = 0
+			if cycs and epochs%savecycle == 0 then
 				if bupdevnm then
 					print("flush dev mod")
 					saveObject(savedir.."devnnmod"..storedevmini..".asc",bdevnnmod)
@@ -223,6 +231,7 @@ function train()
 				end
 			end
 			epochs=epochs+1
+			momentum = math.min(momentum + momentuma,momentume)
 		end
 
 		print("save neural network trained")

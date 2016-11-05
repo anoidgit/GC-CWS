@@ -12,12 +12,19 @@ require "vecLookup"
 require "maskZerovecLookup"
 require "ASequencerCriterion"
 
+function getnn()
+	--return getonn()
+	return getnnn()
+end
+
 function getonn()
-	local lmod = loadObject("modrs/devnnmod1.asc")
+	wvec = nil
+	local lmod = loadObject("modrs/nnmod.asc").module
+	--local lmod = torch.load("modrs/nnmod.asc").module
 	return lmod
 end
 
-function getnn()
+function getnnn()
 
 	local igrusize = sizvec*5;
 
@@ -96,7 +103,7 @@ function getcrit()
 end
 
 function setupvec(modin,value)
-	modin:get(1).updatevec=value
+	modin:get(1).updatevec = value
 end
 
 function dupvec(modin)
@@ -108,7 +115,7 @@ function upvec(modin)
 end
 
 function setnormvec(modin,value)
-	modin:get(1).usenorm=value
+	modin:get(1).usenorm = value
 end
 
 function dnormvec(modin)
