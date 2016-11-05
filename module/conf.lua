@@ -1,0 +1,12 @@
+starterate=math.huge--warning:only used as init erate, not asigned to criterion
+ieps=4
+warmcycle=32
+expdecaycycle=16
+gtraincycle=64
+modlr=1/512
+csave=3
+nclass=2
+lrdecaycycle=16
+savecycle=32
+cycs=true--warning:this option need a lot of memory
+runid=161104
